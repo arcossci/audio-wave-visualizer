@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sound Visualization</title>
+  <style>
+#thefile {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+}
+
+#canvas {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 50%;
+  height: 50%;
+}
+
+audio {
+  position: fixed;
+  left: 10px;
+  bottom: 10px;
+  width: calc(100% - 20px);
+}
+  </style>
+</head>
+<body>
+<div id="content">
+  <input type="file" id="thefile" accept="audio/*" />
+  <canvas id="canvas"></canvas>
+  <audio id="audio" controls></audio>
+</div>
+
+<script>
+  window.onload = function() {
+
+    var file = document.getElementById("thefile");
+    var audio = document.getElementById("audio");
+
+    file.onchange = function() {
+      var files = this.files;
+      audio.src = URL.createObjectURL(files[0]);
+      audio.load();
+      audio.play();
+      var context = new AudioContext();
+      var src = context.createMediaElementSource(audio);
+      var analyser = context.createAnalyser();
+
+      var canvas = document.getElementById("canvas");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      var ctx = canvas.getContext("2d");
+
+      src.connect(analyser);
+      analyser.connect(context.destination);
+
+      analyser.fftSize = 2048;
+
+      var bufferLength = analyser.fftSize;
+      var dataArray = new Uint8Array(bufferLength);
+
+      var centerX = canvas.width / 2;
+      var centerY = canvas.height / 2;
+      var radius = Math.min(centerX, centerY) - 20;
+
+      function drawCircularWaveform() {
+        requestAnimationFrame(drawCircularWaveform);
+
+        analyser.getByteTimeDomainData(dataArray);
+
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#fff";
+        ctx.beginPath();
+
+        var sliceAngle = (Math.PI * 2) / bufferLength;
+        var angle = 0;
+
+        for (var i = 0; i < bufferLength; i++) {
+          var v = dataArray[i] / 128.0;
+          var x = centerX + Math.cos(angle) * (radius * v);
+          var y = centerY + Math.sin(angle) * (radius * v);
+
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+
+          angle += sliceAngle;
+        }
+
+        ctx.closePath();
+        ctx.stroke();
+      }
+
+      audio.play();
+      drawCircularWaveform();
+    };
+  };
+</script>
+</body>
+</html>
